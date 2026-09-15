@@ -5,11 +5,10 @@ import uuid
 
 st.set_page_config(
     page_title="AI Productivity Assistant", 
-    page_icon="✨",
     layout="centered"
 )
 
-st.title("✨ AI Productivity Assistant")
+st.title("AI Productivity Assistant")
 st.markdown("Manage your tasks using natural language! Try saying: *'Add a task to buy groceries'*")
 
 
