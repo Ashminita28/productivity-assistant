@@ -1,18 +1,16 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.sqlite import SqliteSaver
-from backend.agents.state import AgentState
+from backend.states.agent_state import AgentState
 import sqlite3
-from backend.agents.nodes.guardrails import check_input_guardrail_node, check_output_guardrail_node
-from backend.agents.nodes.intent_classifier import classify_intent_node
-from backend.agents.nodes.tool_nodes import (
-    add_task_node, 
-    list_tasks_node, 
-    update_task_node, 
-    delete_task_node, 
-    summarize_tasks_node,
-    follow_up_node
-)
-from backend.agents.nodes.response_node import generate_response_node
+from backend.guardrails.guardrails import check_input_guardrail_node, check_output_guardrail_node
+from backend.nodes.intent_classifier import classify_intent_node
+from backend.nodes.add_task import add_task_node
+from backend.nodes.list_tasks import list_tasks_node
+from backend.nodes.update_task import update_task_node
+from backend.nodes.delete_task import delete_task_node
+from backend.nodes.summary import summarize_tasks_node
+from backend.nodes.follow_up import follow_up_node
+from backend.nodes.response import generate_response_node
 
 def route_guardrail(state: AgentState):
     """Conditional edge routing based on safety."""
