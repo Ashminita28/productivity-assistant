@@ -6,7 +6,7 @@ from backend.agents.prompts import RESPONSE_SYSTEM_PROMPT
 
 def generate_response_node(state: AgentState) -> dict:
     """Takes the tool result and generates a friendly response."""
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", api_key=settings.LLM_API_KEY)
+    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", api_key=settings.LLM_API_KEY)
     
     prompt = RESPONSE_SYSTEM_PROMPT.format(
         user_input=state["user_input"],
@@ -15,7 +15,11 @@ def generate_response_node(state: AgentState) -> dict:
     
     response = llm.invoke([HumanMessage(content=prompt)])
     
+    content = response.content
+    if isinstance(content, list):
+        content = content[0].get("text", "") if isinstance(content[0], dict) else str(content[0])
+    
     return {
-        "response": response.content,
-        "messages": [AIMessage(content=response.content)]
+        "response": content,
+        "messages": [AIMessage(content=content)]
     }
