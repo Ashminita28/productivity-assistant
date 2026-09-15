@@ -1,7 +1,6 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
-from backend.config.env_config import settings
+from backend.agents.llm_factory import get_llm
 from backend.agents.state import AgentState
 from backend.agents.prompts import INTENT_SYSTEM_PROMPT
 import logging
@@ -14,7 +13,7 @@ class IntentSchema(BaseModel):
 def classify_intent_node(state: AgentState) -> dict:
     """Classifies the user's intent to route to the correct tool."""
     logger.info("Node: classify_intent_node")
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", api_key=settings.LLM_API_KEY).with_structured_output(IntentSchema)
+    llm = get_llm(structured_schema=IntentSchema)
     
     messages = [
         SystemMessage(content=INTENT_SYSTEM_PROMPT),

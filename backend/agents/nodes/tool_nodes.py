@@ -1,7 +1,6 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
-from backend.config.env_config import settings
 from backend.agents.state import AgentState
+from backend.agents.llm_factory import get_llm
 from backend.agents.tools import (
     execute_add_task, execute_list_tasks, 
     execute_update_task, execute_delete_task, 
@@ -18,11 +17,8 @@ class UpdateTaskSchema(BaseModel):
 class DeleteTaskSchema(BaseModel):
     task_id: int = Field(description="The ID of the task to delete.")
 
-def _get_llm():
-    return ChatGoogleGenerativeAI(model="gemini-3.6-flash", api_key=settings.LLM_API_KEY)
-
 def add_task_node(state: AgentState) -> dict:
-    llm = _get_llm().with_structured_output(AddTaskSchema)
+    llm = get_llm(structured_schema=AddTaskSchema)
     extracted = llm.invoke(state["user_input"])
     result = execute_add_task(extracted.description)
     return {"tool_result": result}
@@ -32,13 +28,13 @@ def list_tasks_node(state: AgentState) -> dict:
     return {"tool_result": result}
 
 def update_task_node(state: AgentState) -> dict:
-    llm = _get_llm().with_structured_output(UpdateTaskSchema)
+    llm = get_llm(structured_schema=UpdateTaskSchema)
     extracted = llm.invoke(state["user_input"])
     result = execute_update_task(extracted.task_id, extracted.status)
     return {"tool_result": result}
 
 def delete_task_node(state: AgentState) -> dict:
-    llm = _get_llm().with_structured_output(DeleteTaskSchema)
+    llm = get_llm(structured_schema=DeleteTaskSchema)
     extracted = llm.invoke(state["user_input"])
     result = execute_delete_task(extracted.task_id)
     return {"tool_result": result}

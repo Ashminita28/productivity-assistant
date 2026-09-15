@@ -1,7 +1,6 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel, Field
-from backend.config.env_config import settings
+from backend.agents.llm_factory import get_llm
 from backend.agents.state import AgentState
 import logging
 
@@ -39,7 +38,7 @@ def check_input_guardrail_node(state: AgentState) -> dict:
     """Checks the user input against safety guidelines."""
     logger.info("Node: check_input_guardrail_node")
     
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", api_key=settings.LLM_API_KEY).with_structured_output(GuardrailSchema)
+    llm = get_llm(structured_schema=GuardrailSchema)
     
     messages = [
         SystemMessage(content=GUARDRAIL_SYSTEM_PROMPT),
@@ -73,7 +72,7 @@ def check_output_guardrail_node(state: AgentState) -> dict:
     if not state.get("is_safe", True):
         return {}
         
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", api_key=settings.LLM_API_KEY).with_structured_output(GuardrailSchema)
+    llm = get_llm(structured_schema=GuardrailSchema)
     
     messages = [
         SystemMessage(content=OUTPUT_GUARDRAIL_SYSTEM_PROMPT),
