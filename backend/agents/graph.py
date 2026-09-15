@@ -1,5 +1,7 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.sqlite import SqliteSaver
 from backend.agents.state import AgentState
+import sqlite3
 
 from backend.agents.nodes.intent_classifier import classify_intent_node
 from backend.agents.nodes.tool_nodes import (
@@ -51,8 +53,9 @@ def build_graph():
         
     workflow.add_edge("generate_response", END)
     
-    
-    app = workflow.compile()
+    conn = sqlite3.connect("tasks.db", check_same_thread=False)
+    memory = SqliteSaver(conn)
+    app = workflow.compile(checkpointer=memory)
     return app
 
 agent_app = build_graph()
