@@ -19,7 +19,7 @@ class DeleteTaskSchema(BaseModel):
     task_id: int = Field(description="The ID of the task to delete.")
 
 def _get_llm():
-    return ChatGoogleGenerativeAI(model="gemini-1.5-flash", api_key=settings.LLM_API_KEY)
+    return ChatGoogleGenerativeAI(model="gemini-3.6-flash", api_key=settings.LLM_API_KEY)
 
 def add_task_node(state: AgentState) -> dict:
     llm = _get_llm().with_structured_output(AddTaskSchema)
