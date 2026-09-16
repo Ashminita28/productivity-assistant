@@ -1,5 +1,5 @@
 from langchain_core.messages import AIMessage
-from backend.agents.llm_factory import get_llm
+from backend.agents.llm_factory import get_llm, extract_text_content
 from backend.states.agent_state import AgentState
 from backend.prompts.response_prompts import response_prompt
 
@@ -21,7 +21,7 @@ def generate_response_node(state: AgentState) -> dict:
             "user_input": state["user_input"],
             "tool_result": state.get("tool_result", "No tool result provided.")
         })
-        content = getattr(result, "content", str(result))
+        content = extract_text_content(getattr(result, "content", str(result)))
     except Exception as e:
         print(f"Error generating response: {e}")
         content = "An error occurred while generating the response."
