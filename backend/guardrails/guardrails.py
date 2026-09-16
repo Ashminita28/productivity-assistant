@@ -2,7 +2,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel, Field
 from backend.agents.llm_factory import get_llm
 from backend.states.agent_state import AgentState
-from backend.schemas.agent_schemas import GuardrailSchema
+from backend.schemas.agent_schemas import Guardrail
 from backend.prompts.guardrail_prompts import input_guardrail_prompt, output_guardrail_prompt
 import logging
 
@@ -12,7 +12,7 @@ def check_input_guardrail_node(state: AgentState) -> dict:
     """Checks the user input against safety guidelines."""
     logger.info("Node: check_input_guardrail_node")
     
-    llm = get_llm(structured_schema=GuardrailSchema)
+    llm = get_llm(structured_schema=Guardrail)
     
     chain = input_guardrail_prompt | llm
     
@@ -22,7 +22,8 @@ def check_input_guardrail_node(state: AgentState) -> dict:
         reason = extracted.reason
     except Exception as e:
         logger.error(f"Guardrail check failed: {e}")
-        msg = f"System Error: The AI provider encountered an issue. This is usually due to API Rate Limits (429) or invalid keys. Please try again later."
+        error_details = str(e)
+        msg = f"System Error: The AI provider encountered an issue: {error_details}"
         return {
             "is_safe": False,
             "tool_result": msg
@@ -45,7 +46,7 @@ def check_output_guardrail_node(state: AgentState) -> dict:
     if not state.get("is_safe", True):
         return {}
         
-    llm = get_llm(structured_schema=GuardrailSchema)
+    llm = get_llm(structured_schema=Guardrail)
     
     chain = output_guardrail_prompt | llm
     
@@ -55,7 +56,8 @@ def check_output_guardrail_node(state: AgentState) -> dict:
         reason = extracted.reason
     except Exception as e:
         logger.error(f"Output Guardrail check failed: {e}")
-        msg = f"System Error: The AI provider encountered an issue. This is usually due to API Rate Limits (429) or invalid keys. Please try again later."
+        error_details = str(e)
+        msg = f"System Error: The AI provider encountered an issue: {error_details}"
         return {
             "response": msg,
             "messages": [AIMessage(content=msg)]

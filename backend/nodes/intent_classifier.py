@@ -1,20 +1,21 @@
 from backend.agents.llm_factory import get_llm
 from backend.states.agent_state import AgentState
 from backend.prompts.intent_prompts import intent_prompt
-from backend.schemas.agent_schemas import IntentSchema
+from backend.schemas.agent_schemas import Intent
 import logging
 
 logger = logging.getLogger("productivityAssistant")
 
 def classify_intent_node(state: AgentState) -> dict:
-    """Classifies the user's intent to route to the correct tool."""
+    """Classifies the user input into a specific intent."""
     logger.info("Node: classify_intent_node")
-    llm = get_llm(structured_schema=IntentSchema)
+    llm = get_llm(structured_schema=Intent)
     
     chain = intent_prompt | llm
     
     try:
-        extracted = chain.invoke({"user_input": state["user_input"]})
+        messages = state.get("messages", state["user_input"])
+        extracted = chain.invoke({"messages": messages})
         intent = extracted.intent
     except Exception as e:
         logger.error(f"Failed to classify intent: {e}")
