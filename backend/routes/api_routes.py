@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from backend.schemas.api_schemas import ChatRequest, ChatResponse
 from backend.agents.agent_graph import agent_app
 from backend.services.task_service import TaskService
+from langchain_core.messages import HumanMessage
 import logging
 
 logger = logging.getLogger("productivityAssistant")
@@ -15,7 +16,6 @@ async def chat_endpoint(request: ChatRequest):
     """
     config = {"configurable": {"thread_id": request.thread_id}}
     
-    from langchain_core.messages import HumanMessage
     state_input = {
         "user_input": request.user_input,
         "messages": [HumanMessage(content=request.user_input)]
