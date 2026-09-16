@@ -13,10 +13,10 @@ st.markdown("Manage your tasks using natural language! Try saying: *'Add a task 
 
 
 with st.sidebar:
-    st.header("📋 Your Task Board")
+    st.header("Your Task Board")
     
    
-    st.button("🔄 Refresh Task Board")
+    st.button("Refresh Task Board")
     
     try:
         task_res = requests.get("http://localhost:8000/tasks")
@@ -78,6 +78,6 @@ if prompt := st.chat_input("What do you want to do today?"):
                 st.rerun()
                 
             except requests.exceptions.ConnectionError:
-                st.error("🚨 Could not connect to the backend! Is FastAPI running?")
+                st.error("Could not connect to the backend! Is FastAPI running?")
             except Exception as e:
                 st.error(f"An error occurred: {e}")
