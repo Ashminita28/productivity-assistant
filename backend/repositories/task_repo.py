@@ -18,11 +18,14 @@ class TaskRepository:
         self.db.refresh(new_task)
         return new_task
 
-    def update_task_status(self, task_id: int, status: str) -> Task:
-        """Update a task's status if it exists."""
+    def update_task(self, task_id: int, status: str = None, description: str = None) -> Task:
+        """Update a task's status and/or description if it exists."""
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if task:
-            task.status = status
+            if status:
+                task.status = status
+            if description:
+                task.description = description
             self.db.commit()
             self.db.refresh(task)
         return task

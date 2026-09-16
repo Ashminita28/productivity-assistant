@@ -12,11 +12,11 @@ def execute_list_tasks() -> str:
         return "You currently have no tasks."
     return "\n".join([f"{t.id}. {t.description} - {t.status}" for t in tasks])
 
-def execute_update_task(task_id: int, status: str = "Completed") -> str:
+def execute_update_task(task_id: int, status: str = None, description: str = None) -> str:
     service = TaskService()
-    task = service.update_task_status(task_id, status)
+    task = service.update_task(task_id, status, description)
     if task:
-        return f"Task {task_id} updated to {status}."
+        return f"Task {task_id} updated. Status: {task.status}, Description: {task.description}"
     return f"Error: Task with ID {task_id} not found."
 
 def execute_delete_task(task_id: int) -> str:

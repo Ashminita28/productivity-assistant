@@ -18,11 +18,11 @@ class TaskService:
         finally:
             db.close()
 
-    def update_task_status(self, task_id: int, status: str = "Completed"):
+    def update_task(self, task_id: int, status: str = None, description: str = None):
         db = SessionLocal()
         try:
             repo = TaskRepository(db)
-            return repo.update_task_status(task_id, status)
+            return repo.update_task(task_id, status, description)
         finally:
             db.close()
 
