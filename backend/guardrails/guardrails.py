@@ -12,7 +12,7 @@ def check_input_guardrail_node(state: AgentState) -> dict:
     """Checks the user input against safety guidelines."""
     logger.info("Node: check_input_guardrail_node")
     
-    llm = get_llm(structured_schema=Guardrail)
+    llm = get_llm(structured_schema=Guardrail, task_type="fast")
     
     chain = input_guardrail_prompt | llm
     
@@ -46,7 +46,7 @@ def check_output_guardrail_node(state: AgentState) -> dict:
     if not state.get("is_safe", True):
         return {}
         
-    llm = get_llm(structured_schema=Guardrail)
+    llm = get_llm(structured_schema=Guardrail, task_type="fast")
     
     chain = output_guardrail_prompt | llm
     

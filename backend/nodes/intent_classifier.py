@@ -9,7 +9,7 @@ logger = logging.getLogger("productivityAssistant")
 def classify_intent_node(state: AgentState) -> dict:
     """Classifies the user input into a specific intent."""
     logger.info("Node: classify_intent_node")
-    llm = get_llm(structured_schema=Intent)
+    llm = get_llm(structured_schema=Intent, task_type="fast")
     
     chain = intent_prompt | llm
     
