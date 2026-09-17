@@ -5,23 +5,37 @@ import logging
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from backend.config.env_config import settings
 
 logger = logging.getLogger("productivityAssistant")
 
-def get_llm(structured_schema=None, temperature: float = 0.1) -> Any:
-    """Instantiate and return the LLM based on configured LLM_PROVIDER and LLM_MODEL.
+def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "smart") -> Any:
+    """Instantiate and return the LLM based on task type.
 
     Supported Providers:
     1. openrouter
     2. groq
     3. cerebras
     4. gemini
+    5. ollama
     """
-    provider = settings.LLM_PROVIDER.lower().strip()
-    model_name = settings.LLM_MODEL.strip()
+    if task_type == "fast":
+        provider = settings.FAST_LLM_PROVIDER.lower().strip()
+        model_name = settings.FAST_LLM_MODEL.strip()
+    else:
+        provider = settings.SMART_LLM_PROVIDER.lower().strip()
+        model_name = settings.SMART_LLM_MODEL.strip()
 
     llm = None
+
+    if provider == "ollama":
+        logger.info(f"Initializing Ollama LLM: '{model_name}'")
+        llm = ChatOllama(
+            model=model_name,
+            base_url=settings.OLLAMA_BASE_URL,
+            temperature=temperature,
+        )
 
     
     if provider == "openrouter":
