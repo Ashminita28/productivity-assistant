@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     CEREBRAS_API_KEY: str = os.getenv("CEREBRAS_API_KEY", "")
     
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tasks.db")
+    NEMO_URL: str = os.getenv("NEMO_URL", "http://localhost:8001")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

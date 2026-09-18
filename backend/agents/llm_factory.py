@@ -38,7 +38,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "
         )
 
     
-    if provider == "openrouter":
+    elif provider == "openrouter":
         logger.info(f"Initializing OpenRouter LLM: '{model_name}'")
         llm = ChatOpenAI(
             model=model_name,
