@@ -15,7 +15,7 @@ def get_react_agent():
         DeleteTaskTool(), SummarizeTasksTool()
     ]
     
-    return create_agent(model=get_llm(), tools=tools)
+    return create_agent(model=get_llm(), tools=tools, interrupt_before=["tools"])
 
 
 react_agent = get_react_agent()

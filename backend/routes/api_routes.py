@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from backend.schemas.api_schemas import ChatRequest, ChatResponse
+from backend.schemas.api_schemas import ChatRequest, ChatResponse, InterruptRequest
 from backend.services.task_service import TaskService
 from backend.services.chat_service import ChatService
 from langchain_core.messages import HumanMessage
@@ -38,6 +38,12 @@ async def chat_stream_endpoint(request: ChatRequest):
     }
     
     return StreamingResponse(chat_service.stream_chat(state_input, config), media_type="text/plain")
+
+@router.post("/chat/respond_interrupt")
+async def chat_respond_interrupt_endpoint(request: InterruptRequest):
+    """Resumes the graph after a human approval or rejection."""
+    config = {"configurable": {"thread_id": request.thread_id}}
+    return StreamingResponse(chat_service.respond_interrupt(request.approved, config), media_type="text/plain")
 
 @router.get("/chat/history/{thread_id}")
 def get_chat_history(thread_id: str):
