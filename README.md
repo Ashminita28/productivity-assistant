@@ -1,23 +1,29 @@
 # Personal Productivity Assistant (LangChain & LangGraph)
 
-An AI-powered Personal Productivity Assistant built using **LangChain** and **LangGraph** to manage tasks through natural language conversations. The application features state management, conditional routing, conversation memory, a Streamlit UI, and Dual-Layer safety guardrails.
+An AI-powered Personal Productivity Assistant built using **LangChain** and **LangGraph** that manages tasks through natural language conversations.
 
 ---
 
 ## Setup Instructions
 
-This project uses `poetry` for dependency management and requires a `.env` file for API keys.
+This project can be run either via Docker or locally using Poetry.
+
+### Option A: Docker Setup
+
+1. **Environment Variables**: Create a `.env` file in the root directory using `.env.example`.
+2. **Run the Application**:
+   ```bash
+   docker-compose up --build
+   ```
+3. **Access the UI**: Open **http://localhost:8501** in your browser.
+
+### Option B: Local Setup (Poetry)
 
 1. **Install Dependencies**:
    ```bash
    poetry install
    ```
-2. **Environment Variables**: Create a `.env` file in the root directory.
-   ```env
-   LLM_PROVIDER=gemini
-   LLM_MODEL=gemini-3.6-flash
-   GOOGLE_API_KEY=your_api_key_here
-   ```
+2. **Environment Variables**: Create a `.env` file in the root directory. 
 3. **Run the Backend (FastAPI)**:
    ```bash
    poetry run uvicorn backend.main:app --reload
@@ -34,46 +40,53 @@ This project uses `poetry` for dependency management and requires a `.env` file 
 
 ```mermaid
 flowchart TD
-  UI[Streamlit UI] --> API[FastAPI /chat]
-  API --> guard1[Input Guardrail Node]
+  User((User)) --> UI[Streamlit UI :8501]
+  UI --> API[FastAPI Backend :8000]
   
-  guard1 -->|Unsafe| respond[Response Node]
-  guard1 -->|Safe| classify[Intent Classifier Node]
-  
-  classify --> route{Conditional Routing}
-  
-  route -->|add_task| add[Add Task Node]
-  route -->|list_tasks| list[List Tasks Node]
-  route -->|update_task| update[Update Task Node]
-  route -->|delete_task| delete[Delete Task Node]
-  route -->|summarize_tasks| summary[Summary Node]
-  route -->|follow_up| clarify[Follow-up Node]
+  subgraph LangGraph Workflow
+    direction TB
+    in_guard[Input Guardrail Node]
+    history[History Compression Node]
+    react[ReAct Agent Node]
+    out_guard[Output Guardrail Node]
+    unsafe[Unsafe Handler]
+    
+    in_guard -->|Safe| history
+    in_guard -->|Unsafe| unsafe
+    history --> react
+    react --> out_guard
+    unsafe --> out_guard
+  end
 
-  add --> tools[Task Tools]
-  list --> tools
-  update --> tools
-  delete --> tools
-  summary --> tools
-
-  tools --> service[Task Service]
-  service --> db[(SQLite Database)]
-  db --> service
-  service --> tools
-  tools --> respond
-  clarify --> respond
+  API --> in_guard
+  out_guard --> API
   
-  respond --> guard2[Output Guardrail Node]
-  guard2 --> ckpt[(SqliteSaver Checkpointer)]
-  ckpt --> API
-  API --> UI
+  %% Microservice integrations
+  in_guard -. HTTP POST .-> Nemo[NeMo Guardrails Container :8001]
+  out_guard -. HTTP POST .-> Nemo
+  
+  react -. Embeddings .-> Semantic[Semantic Tool Retriever]
+  Semantic -. Filters .-> Tools[Task Tools]
+  react <--> Tools
+  Tools <--> DB[(SQLite Database)]
+  
+  out_guard <--> Ckpt[(SqliteSaver Checkpointer)]
 ```
 
 ---
 
 ## Assumptions Made
 
-1. **Storage**: Tasks are stored in a local SQLite Database (`tasks.db`) via SQLAlchemy.
-2. **LLM Routing**: The system utilizes a dynamic LLM Factory allowing seamless switching between OpenAI, Groq, Cerebras, and Gemini by changing the `.env` configuration.
-3. **Memory**: LangGraph's `SqliteSaver` checkpointer is used to maintain conversational state across turns.
-4. **Guardrails**: The application employs Dual-Layer Guardrails. An Input Guardrail intercepts malicious prompts or off-topic requests before execution, and an Output Guardrail inspects the final AI response to prevent data leaks or hallucinations.
-5. **Modular Architecture**: The codebase uses a multi-tier architecture (separating out Services, Routes, Prompts, States, etc.).
+1. **Task Storage**: A local `tasks.db` SQLite database (managed via SQLAlchemy) would be the most lightweight and reliable permanent storage solution for the tasks.
+2. **Memory Persistence**: Used LangGraph's `SqliteSaver` checkpointer to preserve conversation memory state, assuming users want seamless context retention across multiple turns.
+3. **Microservices Architecture**: Structured the application into isolated Docker microservices (Frontend, Backend, Guardrails) because it's the most robust way to prevent dependency conflicts and mimic a real-world production environment.
+4. **LLM Factory**: Built a dynamic LLM router, assuming that complex reasoning tasks need a "Smart" LLM (like Gemini), while simple tasks are better suited for a "Fast" local LLM (like Ollama) to optimize speed and cost.
+
+---
+
+## Bonus Features Implemented
+
+1. **Follow-up Questions**: By utilizing a ReAct architecture, the assistant naturally identifies missing arguments and asks the user follow-up questions before executing a tool.
+2. **Streamlit UI**: A fully interactive chat interface was built using Streamlit, communicating with the backend via REST.
+3. **Semantic Tool Retrieval**: The agent dynamically embeds user queries and fetches only the relevant tools, optimizing the LLM context window.
+4. **Dual-Layer Guardrails**: NVIDIA NeMo Guardrails intercept off-topic or malicious prompts securely via an isolated Docker container.
