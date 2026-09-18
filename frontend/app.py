@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import uuid
+import json
 
 
 st.set_page_config(
@@ -86,16 +87,51 @@ if prompt := st.chat_input("What do you want to do today?"):
                     for chunk in res.iter_content(chunk_size=None, decode_unicode=True):
                         if chunk:
                             yield chunk
-                            
-                
+                           
                 assistant_response = st.write_stream(stream_parser())
                 
-                st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-                
                
-                st.rerun()
+                if '{"requires_approval": true' in assistant_response:
+                    parts = assistant_response.split('{"requires_approval": true')
+                    display_text = parts[0].strip()
+                    payload = json.loads('{"requires_approval": true' + parts[1])
+                    
+                    if display_text:
+                        st.session_state.messages.append({"role": "assistant", "content": display_text})
+                    st.session_state.pending_approval = payload
+                    st.rerun()
+                else:
+                    st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+                    st.rerun()
                 
             except requests.exceptions.ConnectionError:
                 st.error("Could not connect to the backend! Is FastAPI running?")
             except Exception as e:
                 st.error(f"An error occurred: {e}")
+
+if st.session_state.get("pending_approval"):
+    payload = st.session_state.pending_approval
+    with st.chat_message("assistant"):
+        st.warning(f"⚠️ The AI wants to use `{payload['tool']}` with args: {payload['args']}")
+        col1, col2 = st.columns(2)
+        if col1.button("✅ Approve"):
+            with st.spinner("Executing..."):
+                res = requests.post("http://localhost:8000/chat/respond_interrupt", json={"thread_id": st.session_state.thread_id, "approved": True}, stream=True)
+                def stream_parser():
+                    for chunk in res.iter_content(chunk_size=None, decode_unicode=True):
+                        if chunk: yield chunk
+                final_text = st.write_stream(stream_parser())
+                st.session_state.messages.append({"role": "assistant", "content": final_text})
+                st.session_state.pending_approval = None
+                st.rerun()
+                
+        if col2.button("❌ Reject"):
+            with st.spinner("Rejecting..."):
+                res = requests.post("http://localhost:8000/chat/respond_interrupt", json={"thread_id": st.session_state.thread_id, "approved": False}, stream=True)
+                def stream_parser():
+                    for chunk in res.iter_content(chunk_size=None, decode_unicode=True):
+                        if chunk: yield chunk
+                final_text = st.write_stream(stream_parser())
+                st.session_state.messages.append({"role": "assistant", "content": final_text})
+                st.session_state.pending_approval = None
+                st.rerun()
