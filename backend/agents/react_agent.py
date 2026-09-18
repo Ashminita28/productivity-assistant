@@ -3,22 +3,7 @@ from langchain.agents import create_agent
 from langchain_core.messages import SystemMessage
 from backend.agents.llm_factory import get_llm
 from backend.states.agent_state import AgentState
-from backend.tools.task_tools import (
-    AddTaskTool, ListTasksTool, UpdateTaskTool, 
-    DeleteTaskTool, SummarizeTasksTool
-)
-
-def get_react_agent():
-    """Initializes and returns the Single Tool Calling ReAct agent."""
-    tools = [
-        AddTaskTool(), ListTasksTool(), UpdateTaskTool(), 
-        DeleteTaskTool(), SummarizeTasksTool()
-    ]
-    
-    return create_agent(model=get_llm(), tools=tools, interrupt_before=["tools"])
-
-
-react_agent = get_react_agent()
+from backend.agents.tool_retriever import get_relevant_tools
 
 def call_react_agent(state: AgentState) -> Dict[str, Any]:
     """Wrapper function to invoke the ReAct agent within our main graph."""
@@ -31,6 +16,19 @@ def call_react_agent(state: AgentState) -> Dict[str, Any]:
     system_prompt = SystemMessage(content=system_text)
     
     messages = [system_prompt] + list(state.get("messages", []))
+    
+   
+    user_query = state.get("user_input", "")
+    for msg in reversed(messages):
+        if getattr(msg, "type", "") == "human" or type(msg).__name__ == "HumanMessage":
+            user_query = getattr(msg, "content", user_query)
+            break
+            
+    
+    relevant_tools = get_relevant_tools(user_query, k=3)
+    
+    react_agent = create_agent(model=get_llm(), tools=relevant_tools, interrupt_before=["tools"])
+    
     result = react_agent.invoke({"messages": messages})
     
    
