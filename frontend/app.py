@@ -38,11 +38,23 @@ with st.sidebar:
     except Exception as e:
         st.error("Could not load tasks from database.")
 
+if "thread_id" not in st.session_state:
+   
+    if "thread_id" in st.query_params:
+        st.session_state.thread_id = st.query_params["thread_id"]
+    else:
+        st.session_state.thread_id = str(uuid.uuid4())
+        st.query_params["thread_id"] = st.session_state.thread_id
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "thread_id" not in st.session_state:
-    
-    st.session_state.thread_id = str(uuid.uuid4())
+   
+    try:
+        res = requests.get(f"http://localhost:8000/chat/history/{st.session_state.thread_id}")
+        if res.status_code == 200:
+            st.session_state.messages = res.json().get("messages", [])
+    except Exception as e:
+        pass 
 
 
 for msg in st.session_state.messages:
@@ -61,16 +73,22 @@ if prompt := st.chat_input("What do you want to do today?"):
         with st.spinner("Thinking..."):
             try:
                 
+                
                 res = requests.post(
-                    "http://localhost:8000/chat",
-                    json={"user_input": prompt, "thread_id": st.session_state.thread_id}
+                    "http://localhost:8000/chat/stream",
+                    json={"user_input": prompt, "thread_id": st.session_state.thread_id},
+                    stream=True
                 )
                 res.raise_for_status()
                 
-               
-                assistant_response = res.json()["response"]
-                st.markdown(assistant_response)
+                def stream_parser():
+                   
+                    for chunk in res.iter_content(chunk_size=None, decode_unicode=True):
+                        if chunk:
+                            yield chunk
+                            
                 
+                assistant_response = st.write_stream(stream_parser())
                 
                 st.session_state.messages.append({"role": "assistant", "content": assistant_response})
                 
