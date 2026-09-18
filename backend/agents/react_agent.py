@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from langchain_core.messages import SystemMessage
 from backend.agents.llm_factory import get_llm
 from backend.states.agent_state import AgentState
@@ -15,14 +15,20 @@ def get_react_agent():
         DeleteTaskTool(), SummarizeTasksTool()
     ]
     
-    return create_react_agent(get_llm(), tools=tools)
+    return create_agent(model=get_llm(), tools=tools)
 
 
 react_agent = get_react_agent()
 
 def call_react_agent(state: AgentState) -> Dict[str, Any]:
     """Wrapper function to invoke the ReAct agent within our main graph."""
-    system_prompt = SystemMessage(content="You are a helpful productivity assistant. You can manage tasks (add, update, delete) and query tasks (list, summarize) using your tools. Always be friendly and concise.")
+    system_text = "You are a helpful productivity assistant. You can manage tasks (add, update, delete) and query tasks (list, summarize) using your tools. Always be friendly and concise."
+    
+    summary = state.get("summary", "")
+    if summary:
+        system_text += f"\n\nHere is a summary of the earlier conversation for context:\n{summary}"
+        
+    system_prompt = SystemMessage(content=system_text)
     
     messages = [system_prompt] + list(state.get("messages", []))
     result = react_agent.invoke({"messages": messages})

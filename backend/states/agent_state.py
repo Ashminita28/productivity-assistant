@@ -9,3 +9,4 @@ class AgentState(TypedDict):
     tool_result: str
     is_safe: bool
     response: str
+    summary: str
