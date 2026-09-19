@@ -1,8 +1,10 @@
+import os
 import streamlit as st
 import requests
 import uuid
 import json
 
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="AI Productivity Assistant", 
@@ -20,7 +22,7 @@ with st.sidebar:
     st.button("Refresh Task Board")
     
     try:
-        task_res = requests.get("http://localhost:8000/tasks")
+        task_res = requests.get(f"{BACKEND_URL}/tasks")
         if task_res.status_code == 200:
             tasks = task_res.json()
             if not tasks:
@@ -51,7 +53,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
    
     try:
-        res = requests.get(f"http://localhost:8000/chat/history/{st.session_state.thread_id}")
+        res = requests.get(f"{BACKEND_URL}/chat/history/{st.session_state.thread_id}")
         if res.status_code == 200:
             st.session_state.messages = res.json().get("messages", [])
     except Exception as e:
@@ -76,7 +78,7 @@ if prompt := st.chat_input("What do you want to do today?"):
                 
                 
                 res = requests.post(
-                    "http://localhost:8000/chat/stream",
+                    f"{BACKEND_URL}/chat/stream",
                     json={"user_input": prompt, "thread_id": st.session_state.thread_id},
                     stream=True
                 )
@@ -116,7 +118,7 @@ if st.session_state.get("pending_approval"):
         col1, col2 = st.columns(2)
         if col1.button("✅ Approve"):
             with st.spinner("Executing..."):
-                res = requests.post("http://localhost:8000/chat/respond_interrupt", json={"thread_id": st.session_state.thread_id, "approved": True}, stream=True)
+                res = requests.post(f"{BACKEND_URL}/chat/respond_interrupt", json={"thread_id": st.session_state.thread_id, "approved": True}, stream=True)
                 def stream_parser():
                     for chunk in res.iter_content(chunk_size=None, decode_unicode=True):
                         if chunk: yield chunk
@@ -127,7 +129,7 @@ if st.session_state.get("pending_approval"):
                 
         if col2.button("❌ Reject"):
             with st.spinner("Rejecting..."):
-                res = requests.post("http://localhost:8000/chat/respond_interrupt", json={"thread_id": st.session_state.thread_id, "approved": False}, stream=True)
+                res = requests.post(f"{BACKEND_URL}/chat/respond_interrupt", json={"thread_id": st.session_state.thread_id, "approved": False}, stream=True)
                 def stream_parser():
                     for chunk in res.iter_content(chunk_size=None, decode_unicode=True):
                         if chunk: yield chunk

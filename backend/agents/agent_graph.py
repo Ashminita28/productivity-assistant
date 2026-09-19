@@ -3,10 +3,10 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from backend.states.agent_state import AgentState
 import sqlite3
 from backend.guardrails.guardrails import check_input_guardrail_node, check_output_guardrail_node
-from backend.agents.react_agent import call_react_agent
 from backend.nodes.history_manager import summarize_history_node
 from langchain_core.messages import AIMessage
 from backend.config.env_config import settings
+from backend.agents.react_agent import react_agent_graph
 
 def handle_unsafe_input(state: AgentState):
     """Generates a response if the input guardrail fails."""
@@ -22,12 +22,14 @@ def route_guardrail(state: AgentState):
         return "history_manager"
     return "unsafe_handler"
 
+
+
 def build_graph():
     workflow = StateGraph(AgentState)
     
     workflow.add_node("input_guardrail", check_input_guardrail_node)
     workflow.add_node("history_manager", summarize_history_node)
-    workflow.add_node("react_agent", call_react_agent)
+    workflow.add_node("react_agent", react_agent_graph)
     workflow.add_node("unsafe_handler", handle_unsafe_input)
     workflow.add_node("output_guardrail", check_output_guardrail_node)
  
