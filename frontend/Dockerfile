@@ -1,7 +1,7 @@
 # Builder Stage
 FROM python:3.11-slim AS builder
 WORKDIR /app
-RUN pip install poetry==1.8.3
+RUN pip install poetry
 COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.in-project true && poetry install --no-root --only main
 
