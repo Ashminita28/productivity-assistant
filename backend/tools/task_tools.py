@@ -2,7 +2,8 @@ from typing import Optional, Type
 from pydantic import BaseModel
 from langchain_core.tools import BaseTool
 from backend.services.task_service import TaskService
-from backend.schemas.agent_schemas import AddTaskInput, UpdateTaskInput, DeleteTaskInput
+from backend.schemas.agent_schemas import AddTaskInput, UpdateTaskInput, DeleteTaskInput, SearchTaskInput
+from backend.agents.task_retriever import search_tasks, invalidate_task_index
 
 class AddTaskTool(BaseTool):
     name: str = "add_task"
@@ -12,6 +13,7 @@ class AddTaskTool(BaseTool):
     def _run(self, description: str) -> str:
         service = TaskService()
         task = service.add_task(description)
+        invalidate_task_index()
         return f"Task added successfully. (ID: {task.id})"
 
 class ListTasksTool(BaseTool):
@@ -34,6 +36,7 @@ class UpdateTaskTool(BaseTool):
         service = TaskService()
         task = service.update_task(task_id, status, description)
         if task:
+            invalidate_task_index()
             return f"Task {task_id} updated. Status: {task.status}, Description: {task.description}"
         return f"Error: Task with ID {task_id} not found."
 
@@ -46,6 +49,7 @@ class DeleteTaskTool(BaseTool):
         service = TaskService()
         success = service.delete_task(task_id)
         if success:
+            invalidate_task_index()
             return f"Task {task_id} deleted successfully."
         return f"Error: Task with ID {task_id} not found."
 
@@ -63,3 +67,14 @@ class SummarizeTasksTool(BaseTool):
             f"Completed: {summary['completed']}\n"
             f"Pending: {summary['pending']}"
         )
+
+class SearchTaskTool(BaseTool):
+    name: str = "search_task"
+    description: str = "Semantically searches the user's tasks by meaning or intent. Use this when the user vaguely refers to a task to find its ID."
+    args_schema: Type[BaseModel] = SearchTaskInput
+
+    def _run(self, query: str) -> str:
+        results = search_tasks(query)
+        if not results:
+            return "No matching tasks found."
+        return "\n".join([f"ID: {r['id']} | Description: {r['description']} | Status: {r['status']}" for r in results])

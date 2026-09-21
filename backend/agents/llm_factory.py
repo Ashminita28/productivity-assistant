@@ -6,9 +6,16 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from backend.config.env_config import settings
 
 logger = logging.getLogger("productivityAssistant")
+
+def get_embeddings():
+    return GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-2", 
+        google_api_key=settings.GOOGLE_API_KEY
+    )
 
 def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "smart") -> Any:
     """Instantiate and return the LLM based on task type.
@@ -45,6 +52,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "
             api_key=settings.OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1",
             temperature=temperature,
+            streaming=True,
         )
 
     
@@ -55,6 +63,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "
             groq_api_key=settings.GROQ_API_KEY,
             temperature=temperature,
             max_tokens=700,
+            streaming=True,
         )
 
     
@@ -66,6 +75,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "
             base_url="https://api.cerebras.ai/v1",
             temperature=temperature,
             max_tokens=800,
+            streaming=True,
         )
 
     
@@ -75,6 +85,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "
             model=model_name,
             google_api_key=settings.GOOGLE_API_KEY,
             temperature=temperature,
+            streaming=True,
         )
 
     if structured_schema:

@@ -14,3 +14,6 @@ class UpdateTaskInput(BaseModel):
 
 class DeleteTaskInput(BaseModel):
     task_id: int = Field(description="The ID of the task to delete.")
+
+class SearchTaskInput(BaseModel):
+    query: str = Field(description="The meaning or intent of the task to search for (e.g. 'the python assignment').")
