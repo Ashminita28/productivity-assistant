@@ -5,32 +5,54 @@ import logging
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from backend.config.env_config import settings
 
 logger = logging.getLogger("productivityAssistant")
 
-def get_llm(structured_schema=None, temperature: float = 0.1) -> Any:
-    """Instantiate and return the LLM based on configured LLM_PROVIDER and LLM_MODEL.
+def get_embeddings():
+    return GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-2", 
+        google_api_key=settings.GOOGLE_API_KEY
+    )
+
+def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "smart") -> Any:
+    """Instantiate and return the LLM based on task type.
 
     Supported Providers:
     1. openrouter
     2. groq
     3. cerebras
     4. gemini
+    5. ollama
     """
-    provider = settings.LLM_PROVIDER.lower().strip()
-    model_name = settings.LLM_MODEL.strip()
+    if task_type == "fast":
+        provider = settings.FAST_LLM_PROVIDER.lower().strip()
+        model_name = settings.FAST_LLM_MODEL.strip()
+    else:
+        provider = settings.SMART_LLM_PROVIDER.lower().strip()
+        model_name = settings.SMART_LLM_MODEL.strip()
 
     llm = None
 
+    if provider == "ollama":
+        logger.info(f"Initializing Ollama LLM: '{model_name}'")
+        llm = ChatOllama(
+            model=model_name,
+            base_url=settings.OLLAMA_BASE_URL,
+            temperature=temperature,
+        )
+
     
-    if provider == "openrouter":
+    elif provider == "openrouter":
         logger.info(f"Initializing OpenRouter LLM: '{model_name}'")
         llm = ChatOpenAI(
             model=model_name,
             api_key=settings.OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1",
             temperature=temperature,
+            streaming=True,
         )
 
     
@@ -41,6 +63,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1) -> Any:
             groq_api_key=settings.GROQ_API_KEY,
             temperature=temperature,
             max_tokens=700,
+            streaming=True,
         )
 
     
@@ -52,6 +75,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1) -> Any:
             base_url="https://api.cerebras.ai/v1",
             temperature=temperature,
             max_tokens=800,
+            streaming=True,
         )
 
     
@@ -61,6 +85,7 @@ def get_llm(structured_schema=None, temperature: float = 0.1) -> Any:
             model=model_name,
             google_api_key=settings.GOOGLE_API_KEY,
             temperature=temperature,
+            streaming=True,
         )
 
     if structured_schema:

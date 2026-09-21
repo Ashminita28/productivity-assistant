@@ -3,73 +3,54 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from backend.states.agent_state import AgentState
 import sqlite3
 from backend.guardrails.guardrails import check_input_guardrail_node, check_output_guardrail_node
-from backend.nodes.intent_classifier import classify_intent_node
-from backend.nodes.add_task import add_task_node
-from backend.nodes.list_tasks import list_tasks_node
-from backend.nodes.update_task import update_task_node
-from backend.nodes.delete_task import delete_task_node
-from backend.nodes.summary import summarize_tasks_node
-from backend.nodes.follow_up import follow_up_node
-from backend.nodes.response import generate_response_node
+from backend.nodes.history_manager import summarize_history_node
+from langchain_core.messages import AIMessage
+from backend.config.env_config import settings
+from backend.agents.react_agent import react_agent_graph
+
+def handle_unsafe_input(state: AgentState):
+    """Generates a response if the input guardrail fails."""
+    msg = state.get("tool_result", "Your request was blocked by safety policies.")
+    return {
+        "response": msg,
+        "messages": [AIMessage(content=msg)]
+    }
 
 def route_guardrail(state: AgentState):
     """Conditional edge routing based on safety."""
     if state.get("is_safe", True):
-        return "safe"
-    return "unsafe"
+        return "history_manager"
+    return "unsafe_handler"
 
-def route_intent(state: AgentState):
-    """Conditional edge routing based on intent."""
-    return state["intent"]
+
 
 def build_graph():
     workflow = StateGraph(AgentState)
     
     workflow.add_node("input_guardrail", check_input_guardrail_node)
-    workflow.add_node("intent_classifier", classify_intent_node)
-    
-    workflow.add_node("add_task", add_task_node)
-    workflow.add_node("list_tasks", list_tasks_node)
-    workflow.add_node("update_task", update_task_node)
-    workflow.add_node("delete_task", delete_task_node)
-    workflow.add_node("summarize_tasks", summarize_tasks_node)
-    workflow.add_node("follow_up", follow_up_node)
-    
-    workflow.add_node("generate_response", generate_response_node)
+    workflow.add_node("history_manager", summarize_history_node)
+    workflow.add_node("react_agent", react_agent_graph)
+    workflow.add_node("unsafe_handler", handle_unsafe_input)
     workflow.add_node("output_guardrail", check_output_guardrail_node)
-    
+ 
     workflow.add_edge(START, "input_guardrail")
-    
     workflow.add_conditional_edges(
         "input_guardrail",
         route_guardrail,
         {
-            "safe": "intent_classifier",
-            "unsafe": "generate_response"
+            "history_manager": "history_manager",
+            "unsafe_handler": "unsafe_handler"
         }
     )
-    
-    workflow.add_conditional_edges(
-        "intent_classifier",
-        route_intent,
-        {
-            "add_task": "add_task",
-            "list_tasks": "list_tasks",
-            "update_task": "update_task",
-            "delete_task": "delete_task",
-            "summarize_tasks": "summarize_tasks",
-            "follow_up": "follow_up"
-        }
-    )
-    
-    for tool_node in ["add_task", "list_tasks", "update_task", "delete_task", "summarize_tasks", "follow_up"]:
-        workflow.add_edge(tool_node, "generate_response")
-        
-    workflow.add_edge("generate_response", "output_guardrail")
+    workflow.add_edge("history_manager", "react_agent")
+    workflow.add_edge("react_agent", "output_guardrail")
+    workflow.add_edge("unsafe_handler", "output_guardrail")
     workflow.add_edge("output_guardrail", END)
     
-    conn = sqlite3.connect("tasks.db", check_same_thread=False)
+    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     memory = SqliteSaver(conn)
+    
     app = workflow.compile(checkpointer=memory)
     return app
 
