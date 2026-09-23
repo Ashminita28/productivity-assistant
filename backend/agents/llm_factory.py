@@ -17,59 +17,33 @@ def get_embeddings():
         google_api_key=settings.GOOGLE_API_KEY
     )
 
-def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "smart") -> Any:
-    """Instantiate and return the LLM based on task type.
-
-    Supported Providers:
-    1. openrouter
-    2. groq
-    3. cerebras
-    4. gemini
-    5. ollama
-    """
-    if task_type == "fast":
-        provider = settings.FAST_LLM_PROVIDER.lower().strip()
-        model_name = settings.FAST_LLM_MODEL.strip()
-    else:
-        provider = settings.SMART_LLM_PROVIDER.lower().strip()
-        model_name = settings.SMART_LLM_MODEL.strip()
-
-    llm = None
-
+def _init_provider(provider: str, model_name: str, temperature: float) -> Any:
+    """Helper to initialize a specific LLM provider."""
+    provider = provider.lower().strip()
     if provider == "ollama":
-        logger.info(f"Initializing Ollama LLM: '{model_name}'")
-        llm = ChatOllama(
+        return ChatOllama(
             model=model_name,
             base_url=settings.OLLAMA_BASE_URL,
             temperature=temperature,
         )
-
-    
     elif provider == "openrouter":
-        logger.info(f"Initializing OpenRouter LLM: '{model_name}'")
-        llm = ChatOpenAI(
+        return ChatOpenAI(
             model=model_name,
             api_key=settings.OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1",
             temperature=temperature,
             streaming=True,
         )
-
-    
     elif provider == "groq":
-        logger.info(f"Initializing Groq LLM: '{model_name}'")
-        llm = ChatGroq(
+        return ChatGroq(
             model=model_name,
             groq_api_key=settings.GROQ_API_KEY,
             temperature=temperature,
             max_tokens=700,
             streaming=True,
         )
-
-    
     elif provider == "cerebras":
-        logger.info(f"Initializing Cerebras LLM: '{model_name}'")
-        llm = ChatOpenAI(
+        return ChatOpenAI(
             model=model_name,
             api_key=settings.CEREBRAS_API_KEY,
             base_url="https://api.cerebras.ai/v1",
@@ -77,21 +51,53 @@ def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "
             max_tokens=800,
             streaming=True,
         )
-
-    
     else:
-        logger.info(f"Initializing Gemini LLM: '{model_name}'")
-        llm = ChatGoogleGenerativeAI(
+        return ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=settings.GOOGLE_API_KEY,
             temperature=temperature,
             streaming=True,
         )
 
-    if structured_schema:
-        return llm.with_structured_output(structured_schema)
+def get_llm(structured_schema=None, temperature: float = 0.1, task_type: str = "smart") -> Any:
+    """Instantiate and return the LLM based on task type, with automatic fallbacks."""
+    if task_type == "fast":
+        primary_provider = settings.FAST_LLM_PROVIDER.lower().strip()
+        primary_model = settings.FAST_LLM_MODEL.strip()
+    else:
+        primary_provider = settings.SMART_LLM_PROVIDER.lower().strip()
+        primary_model = settings.SMART_LLM_MODEL.strip()
+
     
-    return llm
+    logger.info(f"Initializing Primary LLM ({primary_provider}): '{primary_model}'")
+    primary_llm = _init_provider(primary_provider, primary_model, temperature)
+
+   
+    backup_configs = [
+        ("gemini", "gemini-2.5-flash"),
+        ("groq", "llama3-8b-8192"),
+        ("openrouter", "google/gemini-2.5-flash")
+    ]
+
+    backup_llms = []
+    for bp, bm in backup_configs:
+        if bp != primary_provider: 
+            try:
+                backup_llms.append(_init_provider(bp, bm, temperature))
+            except Exception as e:
+                logger.warning(f"Could not initialize backup {bp}: {e}")
+
+    
+    if backup_llms:
+        logger.info(f"Binding {len(backup_llms)} fallbacks to primary LLM.")
+        final_llm = primary_llm.with_fallbacks(backup_llms)
+    else:
+        final_llm = primary_llm
+
+    if structured_schema:
+        return final_llm.with_structured_output(structured_schema)
+    
+    return final_llm
 
 def extract_text_content(content: Any) -> str:
     """Extract clean string content whether it is a str or a list of content blocks."""
