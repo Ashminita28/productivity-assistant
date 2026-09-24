@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
-from langchain_qdrant import QdrantVectorStore
+from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 from backend.agents.llm_factory import get_embeddings
 from backend.config.env_config import settings
 
@@ -18,22 +18,26 @@ class RAGService:
         
       
         self.embeddings = get_embeddings()
+        self.sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
         
-    
         self.client = QdrantClient(path=self.persist_directory)
         
-        
         if not self.client.collection_exists("knowledge_base"):
-            from qdrant_client.http.models import Distance, VectorParams
+            from qdrant_client.http.models import Distance, VectorParams, SparseVectorParams
             self.client.create_collection(
                 collection_name="knowledge_base",
-                vectors_config=VectorParams(size=3072, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
+                sparse_vectors_config={
+                    "langchain-sparse": SparseVectorParams()
+                }
             )
         
         self.vector_store = QdrantVectorStore(
             client=self.client,
             collection_name="knowledge_base",
             embedding=self.embeddings,
+            sparse_embedding=self.sparse_embeddings,
+            retrieval_mode=RetrievalMode.HYBRID
         )
         
         self.text_splitter = RecursiveCharacterTextSplitter(

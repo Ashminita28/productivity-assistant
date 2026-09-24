@@ -30,6 +30,8 @@ langchain-community = "^0.4.2"
 qdrant-client = "^1.19.1"
 langchain-qdrant = "^1.1.0"
 python-multipart = "^0.0.32"
+fastembed = "^0.8.1"
+deepeval = "^4.2.6"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
