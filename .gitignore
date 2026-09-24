@@ -5,3 +5,4 @@ tasks.db-wal
 __pycache__/
 *.pyc
 logs/
+data/
