@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from langchain_core.tools import BaseTool
-from typing import Type
+from typing import Type, Optional
 from backend.services.rag_service import rag_service
 
 class LearnDocumentInput(BaseModel):
@@ -17,8 +17,10 @@ class LearnDocumentTool(BaseTool):
     def _run(self, file_path: str) -> str:
         return rag_service.ingest_document(file_path)
 
+
 class QueryKnowledgeBaseInput(BaseModel):
     query: str = Field(..., description="The specific question or search query to look up in the knowledge base.")
+    filename: Optional[str] = Field(default=None, description="Optional. The exact name of the file to search within (e.g., 'react.pdf'). If provided, forces the database to ignore all other files.")
 
 class QueryKnowledgeBaseTool(BaseTool):
     name: str = "query_knowledge_base"
@@ -28,5 +30,5 @@ class QueryKnowledgeBaseTool(BaseTool):
     )
     args_schema: Type[BaseModel] = QueryKnowledgeBaseInput
 
-    def _run(self, query: str) -> str:
-        return rag_service.query_knowledge_base(query)
+    def _run(self, query: str, filename: Optional[str] = None) -> str:
+        return rag_service.query_knowledge_base(query, filename=filename)

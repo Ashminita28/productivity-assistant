@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 from backend.agents.llm_factory import get_embeddings
 from backend.config.env_config import settings
@@ -68,6 +69,10 @@ class RAGService:
             if not documents:
                 return "Error: Document loaded but contained no readable text."
                 
+            for doc in documents:
+                if "source" in doc.metadata:
+                    doc.metadata["source"] = os.path.basename(doc.metadata["source"])
+                
             chunks = self.text_splitter.split_documents(documents)
             
             
@@ -79,12 +84,23 @@ class RAGService:
             logger.error(f"Failed to ingest document {file_path}: {str(e)}")
             return f"Error ingesting document: {str(e)}"
 
-    def query_knowledge_base(self, query: str, k: int = 3) -> str:
-        """Searches the vector database for relevant chunks."""
+    def query_knowledge_base(self, query: str, k: int = 3, filename: str = None) -> str:
+        """Searches the vector database for relevant chunks, optionally filtered by filename."""
         try:
-            logger.info(f"Querying knowledge base for: '{query}'")
+            logger.info(f"Querying knowledge base for: '{query}' (Filter: {filename})")
             
-            results = self.vector_store.similarity_search(query, k=k)
+            search_kwargs = {"k": k}
+            if filename:
+                search_kwargs["filter"] = Filter(
+                    must=[
+                        FieldCondition(
+                            key="metadata.source",
+                            match=MatchValue(value=filename)
+                        )
+                    ]
+                )
+                
+            results = self.vector_store.similarity_search(query, **search_kwargs)
             
             if not results:
                 return "No relevant information found in the knowledge base."
