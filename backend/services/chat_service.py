@@ -13,7 +13,7 @@ class ChatService:
         input_data = state_input
         while True:
             for msg, metadata in agent_app.stream(input_data, config=config, stream_mode="messages"):
-                if metadata.get("langgraph_node") in ["react_agent", "unsafe_handler", "output_guardrail"]:
+                if metadata.get("langgraph_node") in ["react_agent", "agent", "TaskManager", "KnowledgeBase", "unsafe_handler", "output_guardrail"]:
                     if msg.content and isinstance(msg.content, str):
                         yield msg.content
 
@@ -78,7 +78,7 @@ class ChatService:
             input_data = None
             
         for msg, metadata in agent_app.stream(input_data, config=config, stream_mode="messages"):
-            if metadata.get("langgraph_node") == "react_agent":
+            if metadata.get("langgraph_node") in ["react_agent", "agent", "TaskManager", "KnowledgeBase"]:
                 if msg.content and isinstance(msg.content, str):
                     yield msg.content
         

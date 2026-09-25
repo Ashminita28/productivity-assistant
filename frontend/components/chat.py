@@ -11,6 +11,14 @@ def render_chat_interface():
             st.markdown(msg["content"])
 
     if prompt := st.chat_input("What do you want to do today?"):
+        pass 
+
+   
+    if "auto_prompt" in st.session_state and st.session_state.auto_prompt:
+        prompt = st.session_state.auto_prompt
+        st.session_state.auto_prompt = None
+        
+    if prompt:
         with st.chat_message("user"):
             st.markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
