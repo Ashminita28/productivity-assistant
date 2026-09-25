@@ -16,6 +16,25 @@ def render_sidebar():
             st.rerun()
             
         st.divider()
+        st.header("Knowledge Base")
+        uploaded_file = st.file_uploader("Upload a PDF to learn", type=["pdf"])
+        if uploaded_file is not None:
+            if st.button("Learn PDF", use_container_width=True):
+                with st.spinner("Uploading..."):
+                    files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
+                    try:
+                        res = requests.post(f"{BACKEND_URL}/upload", files=files)
+                        if res.status_code == 200:
+                            st.success("Uploaded!")
+                            file_path = res.json().get("file_path")
+                            st.session_state.auto_prompt = f"I just uploaded a document to {file_path}. Please learn it using your tool."
+                            st.rerun()
+                        else:
+                            st.error(f"Upload failed: {res.text}")
+                    except Exception as e:
+                        st.error("Upload failed. Is backend running?")
+        
+        st.divider()
         st.header("Your Task Board")
         st.button("Refresh Task Board")
         

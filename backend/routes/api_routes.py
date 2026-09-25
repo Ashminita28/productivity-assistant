@@ -1,14 +1,37 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from backend.schemas.api_schemas import ChatRequest, ChatResponse, InterruptRequest
 from backend.services.task_service import TaskService
 from backend.services.chat_service import ChatService
 from langchain_core.messages import HumanMessage
 import logging
+import os
+import shutil
 
 logger = logging.getLogger("productivityAssistant")
 router = APIRouter()
 chat_service = ChatService()
+
+@router.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Accepts a file upload and saves it to the local file system."""
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are currently supported.")
+        
+    upload_dir = os.path.join(os.getcwd(), "data", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_path = os.path.join(upload_dir, file.filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        logger.info(f"File uploaded successfully to {file_path}")
+        return {"filename": file.filename, "file_path": file_path, "message": "File uploaded successfully."}
+    except Exception as e:
+        logger.error(f"Error saving uploaded file: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not save file.")
+
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):

@@ -5,14 +5,18 @@ from backend.tools.task_tools import (
     AddTaskTool, ListTasksTool, UpdateTaskTool, 
     DeleteTaskTool, SummarizeTasksTool, SearchTaskTool
 )
-from langchain_core.documents import Document
+from backend.tools.rag_tools import LearnDocumentTool, QueryKnowledgeBaseTool
 
-logger = logging.getLogger("productivityAssistant")
-
-ALL_TOOLS = [
+TASK_TOOLS = [
     AddTaskTool(), ListTasksTool(), UpdateTaskTool(), 
     DeleteTaskTool(), SummarizeTasksTool(), SearchTaskTool()
 ]
+
+RAG_TOOLS = [
+    LearnDocumentTool(), QueryKnowledgeBaseTool()
+]
+
+ALL_TOOLS = TASK_TOOLS + RAG_TOOLS
 
 
 is_vector_store_ready = False

@@ -27,14 +27,17 @@ def summarize_history_node(state: AgentState) -> dict:
         
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You are a conversation summarization AI. Summarize the following chat history in a concise paragraph. If there is a 'Previous Summary', incorporate it seamlessly into the new summary. Focus ONLY on important context, user preferences, or facts."),
-        ("user", f"Previous Summary: {current_summary}\n\nNew Chat History to Summarize:\n{history_text}")
+        ("user", "Previous Summary: {current_summary}\n\nNew Chat History to Summarize:\n{history_text}")
     ])
     
     llm = get_llm(task_type="fast")
     chain = prompt | llm
     
     try:
-        new_summary_msg = chain.invoke({})
+        new_summary_msg = chain.invoke({
+            "current_summary": current_summary, 
+            "history_text": history_text
+        })
         new_summary = new_summary_msg.content
     except Exception as e:
         logger.error(f"Failed to generate summary: {e}")
