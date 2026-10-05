@@ -12,10 +12,14 @@ class ChatService:
         """Streams the response tokens and smartly handles tool interruptions."""
         input_data = state_input
         while True:
-            for msg, metadata in agent_app.stream(input_data, config=config, stream_mode="messages"):
-                if metadata.get("langgraph_node") in ["react_agent", "agent", "TaskManager", "KnowledgeBase", "unsafe_handler", "output_guardrail"]:
-                    if msg.content and isinstance(msg.content, str):
-                        yield msg.content
+            for chunk in agent_app.stream(input_data, config=config, stream_mode="messages", subgraphs=True):
+                if len(chunk) == 2 and isinstance(chunk[1], tuple):
+                    namespace, (msg, metadata) = chunk
+                else:
+                    msg, metadata = chunk
+                    
+                if isinstance(msg, AIMessage) and msg.content and isinstance(msg.content, str):
+                    yield msg.content
 
             state = agent_app.get_state(config)
             sub_state = agent_app.get_state(config, subgraphs=True)
@@ -77,10 +81,14 @@ class ChatService:
             agent_app.update_state(target_config, {"messages": tool_messages}, as_node="tools")
             input_data = None
             
-        for msg, metadata in agent_app.stream(input_data, config=config, stream_mode="messages"):
-            if metadata.get("langgraph_node") in ["react_agent", "agent", "TaskManager", "KnowledgeBase"]:
-                if msg.content and isinstance(msg.content, str):
-                    yield msg.content
+        for chunk in agent_app.stream(input_data, config=config, stream_mode="messages", subgraphs=True):
+            if len(chunk) == 2 and isinstance(chunk[1], tuple):
+                namespace, (msg, metadata) = chunk
+            else:
+                msg, metadata = chunk
+                
+            if isinstance(msg, AIMessage) and msg.content and isinstance(msg.content, str):
+                yield msg.content
         
 
     def get_chat_history(self, thread_id: str):

@@ -42,7 +42,7 @@ class UpdateTaskTool(BaseTool):
 
 class DeleteTaskTool(BaseTool):
     name: str = "delete_task"
-    description: str = "Deletes a task from the user's to-do list."
+    description: str = "Deletes, removes, or clears a task from the user's to-do list."
     args_schema: Type[BaseModel] = DeleteTaskInput
 
     def _run(self, task_id: int) -> str:

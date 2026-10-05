@@ -4,21 +4,22 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from backend.agents.llm_factory import get_llm
 
 class RouterDecision(BaseModel):
-    next: Literal["FINISH", "TaskManager", "KnowledgeBase"] = Field(
-        description="The next agent to route to, or FINISH if the request is complete or unhandled."
+    next: Literal["FINISH", "TaskManager", "KnowledgeBase", "GeneralAssistant"] = Field(
+        description="The next agent to route to, or FINISH if the request is complete."
     )
 
 def create_supervisor_node():
-    options = ["FINISH", "TaskManager", "KnowledgeBase"]
+    options = ["FINISH", "TaskManager", "KnowledgeBase", "GeneralAssistant"]
     
     system_prompt = (
         "You are the Supervisor Orchestrator managing two specialized worker agents: \n"
         "1. 'TaskManager': Responsible for creating, updating, listing, summarizing, searching, and deleting tasks and todos.\n"
         "2. 'KnowledgeBase': Responsible for ingesting PDFs/documents and answering questions based on the document knowledge base.\n\n"
-        "Your job is to read the conversation and decide who should act next.\n"
-        "- If the user wants to interact with tasks/todos, route to 'TaskManager'.\n"
-        "- If the user wants to read a PDF or ask questions about a PDF/document, route to 'KnowledgeBase'.\n"
-        "- If the workers have successfully completed the user's request, or if the user is just saying hello, route to 'FINISH'."
+        "Your job is to read the conversation and decide which specialized agent matches the user's intent.\n"
+        "- TaskManager Intent: The user wants to manage, create, list, delete, or search their to-do list tasks.\n"
+        "- KnowledgeBase Intent: The user is asking a factual question, requesting information from a document, or looking up knowledge/experience.\n"
+        "- GeneralAssistant Intent: The user is just saying hello, making casual conversation, or asking generic questions unrelated to tasks or documents.\n"
+        "- FINISH Intent: The specialized agents have already answered the user's question, and the turn is complete."
     )
     
     prompt = ChatPromptTemplate.from_messages([

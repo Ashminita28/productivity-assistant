@@ -9,6 +9,15 @@ from backend.config.env_config import settings
 from backend.agents.react_agent import react_agent_graph
 from backend.agents.rag_agent import rag_agent_graph
 from backend.agents.orchestrator import create_supervisor_node
+from backend.agents.llm_factory import get_llm
+
+def general_assistant_node(state: AgentState):
+    """Handles general chit-chat when no specialized tools are needed."""
+    llm = get_llm()
+    sys_prompt = AIMessage(content="You are a helpful assistant. Keep your responses concise and friendly.")
+    messages = state.get("messages", [])
+    response = llm.invoke([sys_prompt] + messages)
+    return {"messages": [response]}
 
 def handle_unsafe_input(state: AgentState):
     """Generates a response if the input guardrail fails."""
@@ -39,6 +48,7 @@ def build_graph():
     workflow.add_node("supervisor", supervisor_node)
     workflow.add_node("TaskManager", react_agent_graph)
     workflow.add_node("KnowledgeBase", rag_agent_graph)
+    workflow.add_node("GeneralAssistant", general_assistant_node)
     workflow.add_edge(START, "input_guardrail")
     
     workflow.add_conditional_edges(
@@ -57,12 +67,14 @@ def build_graph():
         {
             "TaskManager": "TaskManager",
             "KnowledgeBase": "KnowledgeBase",
+            "GeneralAssistant": "GeneralAssistant",
             "FINISH": "output_guardrail"
         }
     )
     
     workflow.add_edge("TaskManager", "supervisor")
     workflow.add_edge("KnowledgeBase", "supervisor")
+    workflow.add_edge("GeneralAssistant", "output_guardrail")
     
     workflow.add_edge("unsafe_handler", "output_guardrail")
     workflow.add_edge("output_guardrail", END)
