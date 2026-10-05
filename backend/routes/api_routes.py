@@ -29,7 +29,7 @@ def list_documents():
 
 @router.delete("/documents/{filename}")
 def delete_document(filename: str):
-    """Deletes a document from the file system and (ideally) the vector DB."""
+    """Deletes a document from the file system and the vector DB."""
     upload_dir = os.path.join(os.getcwd(), "data", "uploads")
     file_path = os.path.join(upload_dir, filename)
     if os.path.exists(file_path):
@@ -39,7 +39,7 @@ def delete_document(filename: str):
 
 @router.post("/documents/ingest")
 async def ingest_document(file: UploadFile = File(...)):
-    """Accepts a file upload, saves it, and automatically ingests it into Qdrant."""
+    """Accepts a file upload, saves it, and ingests it into Qdrant."""
     if not file.filename.lower().endswith(('.pdf', '.txt', '.docx', '.md')):
         raise HTTPException(status_code=400, detail="Unsupported file format.")
         
