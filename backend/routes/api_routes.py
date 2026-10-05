@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from backend.schemas.api_schemas import ChatRequest, ChatResponse, InterruptRequest
 from backend.services.task_service import TaskService
 from backend.services.chat_service import ChatService
+from backend.services.rag_service import rag_service
 from langchain_core.messages import HumanMessage
 import logging
 import os
@@ -12,11 +13,35 @@ logger = logging.getLogger("productivityAssistant")
 router = APIRouter()
 chat_service = ChatService()
 
-@router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    """Accepts a file upload and saves it to the local file system."""
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are currently supported.")
+@router.get("/health")
+def health_check():
+    """Simple health check endpoint."""
+    return {"status": "ok"}
+
+@router.get("/documents")
+def list_documents():
+    """Returns a list of all ingested documents."""
+    upload_dir = os.path.join(os.getcwd(), "data", "uploads")
+    if not os.path.exists(upload_dir):
+        return {"documents": []}
+    files = [f for f in os.listdir(upload_dir) if os.path.isfile(os.path.join(upload_dir, f))]
+    return {"documents": files}
+
+@router.delete("/documents/{filename}")
+def delete_document(filename: str):
+    """Deletes a document from the file system and the vector DB."""
+    upload_dir = os.path.join(os.getcwd(), "data", "uploads")
+    file_path = os.path.join(upload_dir, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return {"message": f"{filename} deleted successfully."}
+    raise HTTPException(status_code=404, detail="File not found")
+
+@router.post("/documents/ingest")
+async def ingest_document(file: UploadFile = File(...)):
+    """Accepts a file upload, saves it, and ingests it into Qdrant."""
+    if not file.filename.lower().endswith(('.pdf', '.txt', '.docx', '.md')):
+        raise HTTPException(status_code=400, detail="Unsupported file format.")
         
     upload_dir = os.path.join(os.getcwd(), "data", "uploads")
     os.makedirs(upload_dir, exist_ok=True)
@@ -26,11 +51,16 @@ async def upload_file(file: UploadFile = File(...)):
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        logger.info(f"File uploaded successfully to {file_path}")
-        return {"filename": file.filename, "file_path": file_path, "message": "File uploaded successfully."}
+        logger.info(f"File uploaded successfully to {file_path}. Starting ingestion...")
+        
+        ingest_result = rag_service.ingest_document(file_path)
+        logger.info(ingest_result)
+        
+        return {"filename": file.filename, "file_path": file_path, "message": "File successfully ingested into vector database.", "details": ingest_result}
     except Exception as e:
-        logger.error(f"Error saving uploaded file: {str(e)}")
-        raise HTTPException(status_code=500, detail="Could not save file.")
+        logger.error(f"Error saving/ingesting file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Could not process file: {str(e)}")
+
 
 
 @router.post("/chat", response_model=ChatResponse)

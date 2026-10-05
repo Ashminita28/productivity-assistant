@@ -1,6 +1,7 @@
 from typing import Optional, Type
 from pydantic import BaseModel
 from langchain_core.tools import BaseTool
+from langgraph.types import interrupt
 from backend.services.task_service import TaskService
 from backend.schemas.agent_schemas import AddTaskInput, UpdateTaskInput, DeleteTaskInput, SearchTaskInput
 from backend.agents.task_retriever import search_tasks, invalidate_task_index
@@ -33,6 +34,14 @@ class UpdateTaskTool(BaseTool):
     args_schema: Type[BaseModel] = UpdateTaskInput
 
     def _run(self, task_id: int, status: Optional[str] = None, description: Optional[str] = None) -> str:
+        details = f"Task ID {task_id}"
+        if status:
+            details += f" → Status: '{status}'"
+        if description:
+            details += f" → Description: '{description}'"
+        decision = interrupt(f"Update {details}?")
+        if decision != "Approve":
+            return "Task update was rejected by the user."
         service = TaskService()
         task = service.update_task(task_id, status, description)
         if task:
@@ -42,10 +51,13 @@ class UpdateTaskTool(BaseTool):
 
 class DeleteTaskTool(BaseTool):
     name: str = "delete_task"
-    description: str = "Deletes a task from the user's to-do list."
+    description: str = "Deletes, removes, or clears a task from the user's to-do list."
     args_schema: Type[BaseModel] = DeleteTaskInput
 
     def _run(self, task_id: int) -> str:
+        decision = interrupt(f"Permanently delete Task ID {task_id}?")
+        if decision != "Approve":
+            return "Task deletion was rejected by the user."
         service = TaskService()
         success = service.delete_task(task_id)
         if success:

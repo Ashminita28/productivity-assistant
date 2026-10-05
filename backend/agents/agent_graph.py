@@ -2,13 +2,21 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 from backend.states.agent_state import AgentState
 import sqlite3
+from langchain_core.runnables import RunnableConfig
 from backend.guardrails.guardrails import check_input_guardrail_node, check_output_guardrail_node
 from backend.nodes.history_manager import summarize_history_node
 from langchain_core.messages import AIMessage
 from backend.config.env_config import settings
-from backend.agents.react_agent import react_agent_graph
-from backend.agents.rag_agent import rag_agent_graph
-from backend.agents.orchestrator import create_supervisor_node
+from backend.agents.orchestrator import get_orchestrator_agent
+from backend.agents.llm_factory import get_llm
+
+def general_assistant_node(state: AgentState):
+    """Handles general chit-chat when no specialized tools are needed."""
+    llm = get_llm()
+    sys_prompt = AIMessage(content="You are a helpful assistant. Keep your responses concise and friendly.")
+    messages = state.get("messages", [])
+    response = llm.invoke([sys_prompt] + messages)
+    return {"messages": [response]}
 
 def handle_unsafe_input(state: AgentState):
     """Generates a response if the input guardrail fails."""
@@ -30,15 +38,14 @@ def build_graph():
     workflow.add_node("history_manager", summarize_history_node)
     workflow.add_node("unsafe_handler", handle_unsafe_input)
     workflow.add_node("output_guardrail", check_output_guardrail_node)
-    supervisor_chain = create_supervisor_node()
     
-    def supervisor_node(state: AgentState):
-        decision = supervisor_chain.invoke(state)
-        return {"next": decision.next}
+    orchestrator_agent = get_orchestrator_agent()
+    
+    def orchestrator_node(state: AgentState, config: RunnableConfig):
+        response = orchestrator_agent.invoke({"messages": state["messages"]}, config=config)
+        return {"messages": response["messages"][-1:]}
 
-    workflow.add_node("supervisor", supervisor_node)
-    workflow.add_node("TaskManager", react_agent_graph)
-    workflow.add_node("KnowledgeBase", rag_agent_graph)
+    workflow.add_node("orchestrator", orchestrator_node)
     workflow.add_edge(START, "input_guardrail")
     
     workflow.add_conditional_edges(
@@ -50,19 +57,8 @@ def build_graph():
         }
     )
     
-    workflow.add_edge("history_manager", "supervisor")
-    workflow.add_conditional_edges(
-        "supervisor",
-        lambda x: x.get("next", "FINISH"),
-        {
-            "TaskManager": "TaskManager",
-            "KnowledgeBase": "KnowledgeBase",
-            "FINISH": "output_guardrail"
-        }
-    )
-    
-    workflow.add_edge("TaskManager", "supervisor")
-    workflow.add_edge("KnowledgeBase", "supervisor")
+    workflow.add_edge("history_manager", "orchestrator")
+    workflow.add_edge("orchestrator", "output_guardrail")
     
     workflow.add_edge("unsafe_handler", "output_guardrail")
     workflow.add_edge("output_guardrail", END)

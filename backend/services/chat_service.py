@@ -1,5 +1,6 @@
 from backend.agents.agent_graph import agent_app
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langgraph.types import Command
 import json
 
 class ChatService:
@@ -9,78 +10,31 @@ class ChatService:
         return result["response"]
 
     def stream_chat(self, state_input: dict, config: dict):
-        """Streams the response tokens and smartly handles tool interruptions."""
-        input_data = state_input
-        while True:
-            for msg, metadata in agent_app.stream(input_data, config=config, stream_mode="messages"):
-                if metadata.get("langgraph_node") in ["react_agent", "agent", "TaskManager", "KnowledgeBase", "unsafe_handler", "output_guardrail"]:
-                    if msg.content and isinstance(msg.content, str):
-                        yield msg.content
-
-            state = agent_app.get_state(config)
-            sub_state = agent_app.get_state(config, subgraphs=True)
-            
-            is_waiting = False
-            last_msg = None
-            
-            if sub_state and hasattr(sub_state, "tasks"):
-                for task in sub_state.tasks:
-                    if task.state and "tools" in task.state.next:
-                        is_waiting = True
-                        last_msg = task.state.values.get("messages", [])[-1]
-                        break
-            
-            if is_waiting and last_msg and hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                destructive_calls = [tc for tc in last_msg.tool_calls if tc["name"] in ["delete_task", "update_task"]]
-                if destructive_calls:
-                    yield "\n\n" + json.dumps({
-                        "requires_approval": True,
-                        "tool": destructive_calls[0]["name"],
-                        "args": destructive_calls[0]["args"]
-                    })
-                    break 
-                else:
-                    input_data = None
-            else:
-                if not state.next:
-                    break
-                else:
-                    input_data = None
+        """Streams the response tokens. Detects interrupt events and yields an approval request."""
+        for chunk in agent_app.stream(state_input, config=config, stream_mode="values"):
+            if "__interrupt__" in chunk:
+                interrupt_value = chunk["__interrupt__"][0].value
+                yield "\n\n" + json.dumps({
+                    "requires_approval": True,
+                    "prompt": interrupt_value
+                })
+                return  
+            messages = chunk.get("messages", [])
+            if messages:
+                last = messages[-1]
+                if isinstance(last, AIMessage) and last.content and isinstance(last.content, str):
+                    yield last.content
 
     def respond_interrupt(self, approved: bool, config: dict):
-        """Resumes the graph after human approval or rejection."""
-        sub_state = agent_app.get_state(config, subgraphs=True)
-        target_config = None
-        last_msg = None
-        
-        if sub_state and hasattr(sub_state, "tasks"):
-            for task in sub_state.tasks:
-                if task.state and "tools" in task.state.next:
-                    target_config = task.state.config
-                    last_msg = task.state.values.get("messages", [])[-1]
-                    break
-                    
-        if not target_config:
-            return
-            
-        if approved:
-            input_data = None
-        else:
-            tool_messages = []
-            for tc in last_msg.tool_calls:
-                tool_messages.append(ToolMessage(
-                    tool_call_id=tc["id"], 
-                    content="Error: The user rejected this action. Apologize and ask what else to do.",
-                    name=tc["name"]
-                ))
+        """Resumes the graph after human approval or rejection using Command(resume=...)."""
+        decision = "Approve" if approved else "Reject"
 
-            agent_app.update_state(target_config, {"messages": tool_messages}, as_node="tools")
-            input_data = None
-            
-        for msg, metadata in agent_app.stream(input_data, config=config, stream_mode="messages"):
-            if metadata.get("langgraph_node") in ["react_agent", "agent", "TaskManager", "KnowledgeBase"]:
-                if msg.content and isinstance(msg.content, str):
-                    yield msg.content
+        for chunk in agent_app.stream(Command(resume=decision), config=config, stream_mode="values"):
+            messages = chunk.get("messages", [])
+            if messages:
+                last = messages[-1]
+                if isinstance(last, AIMessage) and last.content and isinstance(last.content, str):
+                    yield last.content
         
 
     def get_chat_history(self, thread_id: str):

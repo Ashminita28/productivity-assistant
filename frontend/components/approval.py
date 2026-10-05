@@ -8,7 +8,7 @@ def render_approval_ui():
     if st.session_state.get("pending_approval"):
         payload = st.session_state.pending_approval
         with st.chat_message("assistant"):
-            st.warning(f"⚠️ The AI wants to use `{payload['tool']}` with args: {payload['args']}")
+            st.warning(f"⚠️ {payload['prompt']}")
             col1, col2 = st.columns(2)
             if col1.button("✅ Approve"):
                 with st.spinner("Executing..."):

@@ -5,7 +5,7 @@ from backend.tools.task_tools import (
     AddTaskTool, ListTasksTool, UpdateTaskTool, 
     DeleteTaskTool, SummarizeTasksTool, SearchTaskTool
 )
-from backend.tools.rag_tools import LearnDocumentTool, QueryKnowledgeBaseTool
+from backend.tools.rag_tools import QueryKnowledgeBaseTool
 
 TASK_TOOLS = [
     AddTaskTool(), ListTasksTool(), UpdateTaskTool(), 
@@ -13,7 +13,7 @@ TASK_TOOLS = [
 ]
 
 RAG_TOOLS = [
-    LearnDocumentTool(), QueryKnowledgeBaseTool()
+    QueryKnowledgeBaseTool()
 ]
 
 ALL_TOOLS = TASK_TOOLS + RAG_TOOLS

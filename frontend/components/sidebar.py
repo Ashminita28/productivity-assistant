@@ -6,6 +6,9 @@ import os
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 def render_sidebar():
+    if st.session_state.pop("upload_success", False):
+        st.toast("Uploaded and fully learned by the database!", icon="✅")
+
     with st.sidebar:
         st.header("Chat History")
         
@@ -19,15 +22,14 @@ def render_sidebar():
         st.header("Knowledge Base")
         uploaded_file = st.file_uploader("Upload a PDF to learn", type=["pdf"])
         if uploaded_file is not None:
-            if st.button("Learn PDF", use_container_width=True):
+            if st.session_state.get("last_uploaded_file") != uploaded_file.name:
                 with st.spinner("Uploading..."):
                     files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
                     try:
-                        res = requests.post(f"{BACKEND_URL}/upload", files=files)
+                        res = requests.post(f"{BACKEND_URL}/documents/ingest", files=files)
                         if res.status_code == 200:
-                            st.success("Uploaded!")
-                            file_path = res.json().get("file_path")
-                            st.session_state.auto_prompt = f"I just uploaded a document to {file_path}. Please learn it using your tool."
+                            st.session_state.upload_success = True
+                            st.session_state.last_uploaded_file = uploaded_file.name
                             st.rerun()
                         else:
                             st.error(f"Upload failed: {res.text}")
