@@ -10,4 +10,4 @@ sys_msg = (
     "3. Execute the tool and confirm the result to the user clearly and concisely.\n"
 )
 
-react_agent_graph = create_agent(model=get_llm(), tools=ALL_TOOLS, system_prompt=sys_msg, interrupt_before=["tools"])
+react_agent_graph = create_agent(model=get_llm(), tools=ALL_TOOLS, system_prompt=sys_msg)

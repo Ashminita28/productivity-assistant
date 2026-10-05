@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 from backend.states.agent_state import AgentState
 import sqlite3
+from langchain_core.runnables import RunnableConfig
 from backend.guardrails.guardrails import check_input_guardrail_node, check_output_guardrail_node
 from backend.nodes.history_manager import summarize_history_node
 from langchain_core.messages import AIMessage
@@ -40,8 +41,8 @@ def build_graph():
     
     orchestrator_agent = get_orchestrator_agent()
     
-    def orchestrator_node(state: AgentState):
-        response = orchestrator_agent.invoke({"messages": state["messages"]})
+    def orchestrator_node(state: AgentState, config: RunnableConfig):
+        response = orchestrator_agent.invoke({"messages": state["messages"]}, config=config)
         return {"messages": response["messages"][-1:]}
 
     workflow.add_node("orchestrator", orchestrator_node)

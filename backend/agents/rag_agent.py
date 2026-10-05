@@ -15,6 +15,5 @@ sys_msg = (
 rag_agent_graph = create_agent(
     model=get_llm(), 
     tools=RAG_TOOLS, 
-    system_prompt=sys_msg,
-    interrupt_before=["tools"]
+    system_prompt=sys_msg
 )
