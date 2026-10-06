@@ -61,9 +61,9 @@ flowchart TD
   API --> in_guard
   out_guard --> API
   
-  %% Microservice integrations
-  in_guard -. HTTP POST .-> Nemo[NeMo Guardrails Container :8001]
-  out_guard -. HTTP POST .-> Nemo
+  %% Guardrails validation
+  in_guard -. Local Validation .-> GuardrailsAI[Guardrails AI]
+  out_guard -. Local Validation .-> GuardrailsAI
   
   react -. Embeddings .-> Semantic[Semantic Tool Retriever]
   Semantic -. Filters .-> Tools[Task Tools]
@@ -79,7 +79,7 @@ flowchart TD
 
 1. **Task Storage**: A local `tasks.db` SQLite database (managed via SQLAlchemy) would be the most lightweight and reliable permanent storage solution for the tasks.
 2. **Memory Persistence**: Used LangGraph's `SqliteSaver` checkpointer to preserve conversation memory state, assuming users want seamless context retention across multiple turns.
-3. **Microservices Architecture**: Structured the application into isolated Docker microservices (Frontend, Backend, Guardrails) because it's the most robust way to prevent dependency conflicts and mimic a real-world production environment.
+3. **Microservices Architecture**: Structured the application into isolated Docker microservices (Frontend, Backend) because it's the most robust way to prevent dependency conflicts and mimic a real-world production environment.
 4. **LLM Factory**: Built a dynamic LLM router, assuming that complex reasoning tasks need a "Smart" LLM (like Gemini), while simple tasks are better suited for a "Fast" local LLM (like Ollama) to optimize speed and cost.
 
 ---
@@ -89,4 +89,4 @@ flowchart TD
 1. **Follow-up Questions**: By utilizing a ReAct architecture, the assistant naturally identifies missing arguments and asks the user follow-up questions before executing a tool.
 2. **Streamlit UI**: A fully interactive chat interface was built using Streamlit, communicating with the backend via REST.
 3. **Semantic Tool Retrieval**: The agent dynamically embeds user queries and fetches only the relevant tools, optimizing the LLM context window.
-4. **Dual-Layer Guardrails**: NVIDIA NeMo Guardrails intercept off-topic or malicious prompts securely via an isolated Docker container.
+4. **Dual-Layer Guardrails**: Guardrails AI validates input and output locally to intercept off-topic or malicious prompts securely.
